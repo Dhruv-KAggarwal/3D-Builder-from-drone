@@ -9,12 +9,16 @@ import {
   commands,
   engineAvailable,
   normalizeAltitude,
+  normalizeFrames,
+  normalizeQuality,
+  normalizeThreads,
   queueExclusive,
   reconstruct,
   terminateAllEngines,
   buildStagePlan,
 } from './lib/reconstruct.mjs';
 import { sampleTelemetry } from './lib/telemetry.mjs';
+import { hardwareFromTelemetry, hardwareLabel } from './lib/hardware.mjs';
 
 const port = Number(process.env.PORT || 8787);
 const root = resolve('runtime');
@@ -37,7 +41,7 @@ const mime = {
 
 function cors(response, type = 'application/json') {
   response.setHeader('Access-Control-Allow-Origin', '*');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-File-Name, X-Quality, X-Altitude, X-Crs');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-File-Name, X-Quality, X-Altitude, X-Frames, X-Threads, X-Crs');
   response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.setHeader('Content-Type', type);
 }
@@ -237,6 +241,8 @@ async function handle(request, response) {
       ready: ffmpeg && colmap,
       activeJobs: running.length,
       telemetry,
+      hardware: hardwareFromTelemetry(telemetry),
+      hardwareLabel: hardwareLabel(hardwareFromTelemetry(telemetry)),
     });
   }
 
@@ -276,13 +282,14 @@ async function handle(request, response) {
       return send(response, 400, { error: 'The uploaded video is empty or truncated.' });
     }
 
-    const requestedQuality = String(request.headers['x-quality'] || 'fast').toLowerCase();
     const job = {
       id,
       work,
       input,
       fileName,
-      quality: requestedQuality === 'studio' ? 'studio' : 'fast',
+      quality: normalizeQuality(request.headers['x-quality']),
+      frames: normalizeFrames(request.headers['x-frames']),
+      threads: request.headers['x-threads'] ? normalizeThreads(request.headers['x-threads']) : null,
       altitude: normalizeAltitude(request.headers['x-altitude']),
       progress: 0,
       stage: 'Queued behind another reconstruction',

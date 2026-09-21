@@ -43,7 +43,7 @@ app.innerHTML = `
       <div class="view" id="mission-view">
         <section class="workspace-grid">
           <div class="card ingest-card"><div class="card-head"><div><span class="step">01</span><div><p class="kicker">MISSION INPUT</p><h3>Capture package</h3></div></div><span class="help">i</span></div><div class="dropzone" id="dropzone"><div class="drop-icon">↑</div><strong id="drop-title">Drop single-pass video here</strong><p id="drop-subtitle">MP4, MOV or M4V · 720p / 4K · streamed to disk</p><button class="text-btn" id="browse">Browse footage <span>→</span></button><input id="file-input" type="file" accept="video/*" hidden /></div><div class="file-row" id="file-row" hidden><div class="file-icon">▣</div><div><b id="file-name"></b><small id="file-meta"></small></div><button id="remove-file">×</button></div><div class="input-checks"><label><input type="checkbox" checked id="imu"> IMU / flight metadata attached</label><label><input type="checkbox" id="rtk"> RTK / PPK correction available</label></div></div>
-          <div class="card config-card"><div class="card-head"><div><span class="step">02</span><div><p class="kicker">RECONSTRUCTION PROFILE</p><h3>Set mission parameters</h3></div></div></div><label class="field-label">OUTPUT FOCUS</label><div class="profile-grid"><button class="profile" data-quality="Survey"><b>Survey</b><small>Full scene · metric-first</small><span>✓</span></button><button class="profile active" data-quality="Rapid"><b>Rapid response</b><small>Fast geometry · 4060 safe</small><span>✓</span></button></div><div class="config-row"><label><span>Camera altitude</span><b><input id="altitude" value="82" type="number"> m AGL</b></label><label><span>Coordinate system</span><b><select id="crs"><option>Local tangent plane</option><option>WGS 84 / UTM 43N</option><option>WGS 84 / UTM 44N</option></select></b></label></div><label class="field-label">OUTPUTS</label><div class="output-chips"><button class="chip active">Textured mesh</button><button class="chip active">Point cloud</button><button class="chip active">Orthomosaic</button><button class="chip active">DEM mesh</button></div><button class="generate-btn" id="generate" disabled><span>◈</span> Generate scene <kbd>Ctrl ↵</kbd></button><p class="estimate" id="estimate">Upload a capture package to estimate runtime</p></div>
+          <div class="card config-card"><div class="card-head"><div><span class="step">02</span><div><p class="kicker">RECONSTRUCTION PROFILE</p><h3>Set mission parameters</h3></div></div></div><label class="field-label">OUTPUT FOCUS</label><div class="profile-grid"><button class="profile active" data-quality="Rapid"><b>Rapid</b><small>2 fps floor · real surface</small><span>✓</span></button><button class="profile" data-quality="Balanced"><b>Balanced</b><small>Sharper surface</small><span>✓</span></button><button class="profile" data-quality="Detailed"><b>Detailed map</b><small>Finest grid + texture</small><span>✓</span></button></div><div class="config-row"><label><span>Camera altitude</span><b><input id="altitude" value="82" type="number"> m AGL</b></label><label><span>Coordinate system</span><b><select id="crs"><option>Local tangent plane</option><option>WGS 84 / UTM 43N</option><option>WGS 84 / UTM 44N</option></select></b></label></div><div class="tune-row"><label><span>Frames</span><input id="frames" type="number" min="12" max="240" placeholder="Auto"></label><label><span>CPU threads</span><input id="threads" type="number" min="1" max="64" placeholder="Auto"></label></div><p class="tune-note" id="tune-note">Leave frames and threads blank. Rapid keeps at least two frames per second on flights under two minutes (never under 72), so a fast pass still overlaps and a surface gets built. Threads follow this PC’s GPU and RAM.</p><label class="field-label">OUTPUTS</label><div class="output-chips"><button class="chip active">Textured mesh</button><button class="chip active">Point cloud</button><button class="chip active">Orthomosaic</button><button class="chip active">DEM mesh</button></div><button class="generate-btn" id="generate" disabled><span>◈</span> Generate scene <kbd>Ctrl ↵</kbd></button><p class="estimate" id="estimate">Upload a capture package to estimate runtime</p></div>
         </section>
         <section class="card pipeline-card"><div class="pipeline-head"><div><p class="kicker">PROCESSING PIPELINE</p><h3 id="pipeline-title">Waiting for capture package</h3></div><div class="pipeline-meta"><span class="pipeline-time" id="pipeline-time">—</span><span class="pipeline-eta" id="pipeline-eta"></span></div></div><div class="pipeline-steps" id="pipeline-steps"></div><div class="progress-wrap"><div class="progress-label"><span id="stage-label">Awaiting mission start</span><b id="progress-value">0%</b></div><div class="progress-track"><i id="progress-bar"></i></div></div><div class="telemetry" id="telemetry"><span>GPU <b id="tel-gpu">—</b></span><span>VRAM <b id="tel-vram">—</b></span><span>RAM <b id="tel-ram">—</b></span><span>CPU <b id="tel-cpu">—</b></span><span>TEMP <b id="tel-temp">—</b></span></div></section>
         <section class="scene-section"><div class="section-title"><div><p class="kicker">SCENE PREVIEW</p><h3>Operational digital twin</h3></div><div class="layer-controls">${Object.entries({ terrain: 'Terrain', points: 'Photo points', grid: 'Grid' }).map(([key, label]) => `<button class="layer${key === 'points' ? '' : ' active'}" data-layer="${key}"><i></i>${label}</button>`).join('')}</div></div><div class="scene-card"><canvas id="scene-canvas"></canvas><div class="load-overlay" id="load-overlay" hidden><b id="load-pct">0%</b><small>Streaming terrain mesh</small></div><div class="scene-overlay"><span class="map-pill">◉ <span id="scene-state">PREVIEW / NO MODEL YET</span></span><span class="north">N</span><div class="scene-legend"><span><i class="legend-structure"></i>SHIFT-CLICK MEASURE</span><span><i class="legend-road"></i>ORBIT DRAG</span><span><i class="legend-terrain"></i>SCROLL ZOOM</span></div></div></div><div class="scene-footer"><span id="scene-caption">Upload a single-pass flight or load the last reconstructed scene</span><div class="download-bar" id="download-bar" hidden><a id="dl-glb">GLB</a><a id="dl-cloud">PLY cloud</a><a id="dl-mesh">PLY mesh</a><a id="dl-ortho">Ortho</a></div></div></section>
@@ -161,8 +161,26 @@ function setFile(file) {
   $('drop-title').textContent = 'Capture package loaded';
   $('drop-subtitle').textContent = 'Telemetry will be fused when processing starts';
   $('generate').disabled = false;
-  $('estimate').textContent = state.quality === 'Rapid' ? 'Estimated runtime · under 15 min for a 10 min pass' : 'Estimated runtime · higher detail · still aimed under 15 min';
+  refreshEstimate();
   toast('Capture package ready for mission processing.');
+}
+function qualityToken() {
+  if (state.quality === 'Detailed') return 'detailed';
+  if (state.quality === 'Balanced') return 'balanced';
+  return 'fast';
+}
+function refreshEstimate() {
+  const frames = $('frames')?.value;
+  const threads = $('threads')?.value;
+  const frameNote = frames ? `at least ${frames} frames` : 'auto frames, 2 per second on short flights';
+  const threadNote = threads ? `${threads} CPU threads` : 'auto threads';
+  const tuned = state.health?.hardwareLabel ? `Tuned for ${state.health.hardwareLabel}` : 'Tuned to this PC';
+  const copy = {
+    Rapid: `${tuned} · ${frameNote} · ${threadNote} · wider match, geometric stereo, denser surface`,
+    Balanced: `${tuned} · ${frameNote} · ${threadNote} · higher depth resolution`,
+    Detailed: `${tuned} · ${frameNote} · ${threadNote} · finest grid the GPU can hold · longer than Rapid`,
+  };
+  $('estimate').textContent = state.file ? copy[state.quality] || copy.Rapid : 'Upload a capture package to estimate runtime';
 }
 function resetFile() {
   state.file = null;
@@ -172,7 +190,7 @@ function resetFile() {
   $('drop-title').textContent = 'Drop single-pass video here';
   $('drop-subtitle').textContent = 'MP4, MOV or M4V · 720p / 4K · streamed to disk';
   $('generate').disabled = true;
-  $('estimate').textContent = 'Upload a capture package to estimate runtime';
+  refreshEstimate();
 }
 function setView(view) {
   state.activeView = view;
@@ -235,7 +253,9 @@ async function checkHealth() {
   try {
     const response = await fetch(`${API}/api/health`);
     state.health = await response.json();
-    $('engine-copy').textContent = state.health.colmap ? 'COLMAP + exporter online' : 'Engine needs attention';
+    $('engine-copy').textContent = state.health.colmap
+      ? (state.health.hardwareLabel ? `${state.health.hardwareLabel} · auto-tuned` : 'COLMAP + exporter online')
+      : 'Engine needs attention';
     if (!state.health.colmap) $('engine-status')?.classList.add('warning');
   } catch {
     $('engine-copy').textContent = 'API offline · start npm run api';
@@ -299,8 +319,10 @@ async function reconstruct() {
       headers: {
         'Content-Type': state.file.type || 'video/mp4',
         'X-File-Name': state.file.name,
-        'X-Quality': state.quality === 'Rapid' ? 'fast' : 'studio',
+        'X-Quality': qualityToken(),
         'X-Altitude': String($('altitude').value || '82'),
+        'X-Frames': $('frames').value || '',
+        'X-Threads': $('threads').value || '',
       },
       body: state.file,
     });
@@ -380,8 +402,10 @@ document.querySelectorAll('.profile').forEach((button) => button.addEventListene
   document.querySelectorAll('.profile').forEach((item) => item.classList.remove('active'));
   button.classList.add('active');
   state.quality = button.dataset.quality;
-  $('estimate').textContent = state.file ? (state.quality === 'Rapid' ? 'Estimated runtime · under 15 min for a 10 min pass' : 'Estimated runtime · higher detail · still aimed under 15 min') : 'Upload a capture package to estimate runtime';
+  refreshEstimate();
 }));
+$('frames').addEventListener('input', refreshEstimate);
+$('threads').addEventListener('input', refreshEstimate);
 document.querySelectorAll('.chip').forEach((button) => button.addEventListener('click', () => button.classList.toggle('active')));
 document.querySelectorAll('.layer').forEach((button) => button.addEventListener('click', () => {
   const key = button.dataset.layer;
@@ -408,5 +432,26 @@ await checkHealth();
 if (state.health?.telemetry) formatTelemetry({ telemetry: state.health.telemetry });
 renderStages(fallbackStages);
 const jobs = await refreshJobs();
-if (jobs[0]?.status === 'complete') await showJob(jobs[0]);
+const live = jobs.find((job) => job.status === 'processing');
+if (live) {
+  state.processing = true;
+  $('generate').disabled = true;
+  $('pipeline-title').textContent = 'Reconstructing single-pass scene';
+  $('scene-state').textContent = 'PROCESSING / LIVE TELEMETRY';
+  $('pipeline-time').textContent = 'RUNNING';
+  watchJob(live.id, updateProgress).then(async (job) => {
+    if (job.status !== 'complete') throw new Error(job.error || 'Reconstruction failed.');
+    toast(job.warning || 'Scene complete. Metric model is ready.');
+    await refreshJobs();
+    await showJob(job);
+  }).catch((error) => {
+    toast(error.message);
+    $('pipeline-title').textContent = 'Processing stopped — review capture quality';
+    $('scene-state').textContent = 'PREVIEW / PROCESSING ERROR';
+    $('pipeline-time').textContent = 'ERROR';
+  }).finally(() => {
+    state.processing = false;
+    $('generate').disabled = !state.file;
+  });
+} else if (jobs[0]?.status === 'complete') await showJob(jobs[0]);
 viewer.resize();

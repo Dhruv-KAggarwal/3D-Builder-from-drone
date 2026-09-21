@@ -16,3 +16,9 @@
 .model-actions{display:flex;gap:10px;align-items:center}
 .model-actions button,.model-actions a{background:none;border:1px solid #3b5b61;color:var(--text);padding:6px 8px;border-radius:4px;font-size:11px;text-decoration:none}
 @media(max-width:1100px){main{padding:25px}.banner-stats{gap:18px}.pipeline-step small{display:none}}
+.profile-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tune-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.tune-row label{display:flex;flex-direction:column;gap:6px}
+.tune-row label span{font:500 10px 'DM Mono',monospace;letter-spacing:.12em;color:var(--muted)}
+.tune-row input{background:#0b1a20;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px}
+.tune-note{margin:10px 0 0;color:var(--muted);font-size:12px;line-height:1.45}

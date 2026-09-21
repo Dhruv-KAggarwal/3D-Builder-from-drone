@@ -2,17 +2,24 @@ import { mkdir, copyFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { basename, resolve, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { reconstruct, exportExistingJob } from './lib/reconstruct.mjs';
+import { reconstruct, exportExistingJob, normalizeFrames, normalizeQuality, normalizeThreads } from './lib/reconstruct.mjs';
 
 const args = process.argv.slice(2);
-const quality = args.includes('--studio') ? 'studio' : 'fast';
+const quality = normalizeQuality(
+  args.includes('--detailed') || args.includes('--studio') ? 'detailed'
+    : args.includes('--balanced') ? 'balanced'
+      : 'fast',
+);
 const altitude = Number((args.find((arg) => arg.startsWith('--altitude=')) || '').split('=')[1] || 82);
+const frames = normalizeFrames((args.find((arg) => arg.startsWith('--frames=')) || '').split('=')[1]);
+const threadArg = args.find((arg) => arg.startsWith('--threads='));
+const threads = threadArg ? normalizeThreads(threadArg.split('=')[1]) : null;
 const reuse = args.find((arg) => arg.startsWith('--reuse='))?.split('=')[1];
 const full = args.includes('--full');
 const input = args.find((arg) => !arg.startsWith('--'));
 
 if (!input && !reuse) {
-  console.error('Usage: node reconstruct-cli.mjs <video.mp4> [--fast|--studio] [--altitude=82]');
+  console.error('Usage: node reconstruct-cli.mjs <video.mp4> [--fast|--balanced|--detailed] [--frames=64] [--threads=8] [--altitude=82]');
   console.error('   or: node reconstruct-cli.mjs --reuse=runtime/<job-id> [--view|--full] [--altitude=82]');
   process.exit(1);
 }
@@ -40,6 +47,8 @@ const job = {
   input: dest,
   fileName: basename(input),
   quality,
+  frames,
+  threads,
   altitude,
   progress: 0,
   stage: 'Queued',

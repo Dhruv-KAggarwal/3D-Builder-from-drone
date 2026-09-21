@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
 import { closeSync, existsSync, openSync, readSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { killTree, queueExclusive, normalizeAltitude, engineAvailable, commands, parseEngineLine, createProgressTracker, createLineProgress } from '../lib/reconstruct.mjs';
+import { killTree, queueExclusive, normalizeAltitude, engineAvailable, commands, parseEngineLine, createProgressTracker, createLineProgress, qualitySettings } from '../lib/reconstruct.mjs';
 import { parseNvidiaSmi, resetTelemetry } from '../lib/telemetry.mjs';
+import { classifyHardware } from '../lib/hardware.mjs';
 
 const results = [];
 const check = (name, pass, detail = '') => {
@@ -98,6 +99,18 @@ resetTelemetry();
 const parsedGpu = parseNvidiaSmi('12, 1024, 8192, 61');
 check('nvidia-smi parser', parsedGpu?.utilisationPercent === 12 && parsedGpu.memoryTotalMb === 8192);
 check('nvidia-smi parser rejects junk', parseNvidiaSmi('nope') === null);
+const namedGpu = parseNvidiaSmi('NVIDIA GeForce RTX 4060 Laptop GPU, 12, 1024, 8188, 61');
+check('nvidia-smi keeps the GPU name', namedGpu?.name?.includes('RTX 4060') && namedGpu.memoryTotalMb === 8188);
+const laptop = classifyHardware({ logicalThreads: 28, ramMb: 16088, vramMb: 8188, gpuName: 'NVIDIA GeForce RTX 4060 Laptop GPU' });
+check('4060 laptop is a mid tier on 16 threads', laptop.tier === 'mid' && laptop.workerThreads === 16 && laptop.cacheGb === 4);
+const cpuOnly = classifyHardware({ logicalThreads: 8, ramMb: 8192, vramMb: 0 });
+check('missing GPU falls back to the CPU tier', cpuOnly.tier === 'cpu' && cpuOnly.workerThreads <= 8);
+const rapidCanyon = qualitySettings('fast', 67.26, {}, laptop);
+check('rapid samples a one-minute flight at about 2 fps', rapidCanyon.targetFrames >= 130 && rapidCanyon.targetFrames <= 180 && Number(rapidCanyon.fps) >= 1.9, `${rapidCanyon.targetFrames} @ ${rapidCanyon.fps} fps`);
+const rapidStarved = qualitySettings('fast', 67.26, { frames: 40 }, laptop);
+check('a low frame override cannot starve rapid', rapidStarved.targetFrames >= 130);
+const rapidHover = qualitySettings('fast', 10, {}, laptop);
+check('rapid still samples a short hover', rapidHover.targetFrames >= 72 && rapidHover.targetFrames <= 120, String(rapidHover.targetFrames));
 
 const failed = results.filter((r) => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
