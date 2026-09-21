@@ -1,0 +1,34 @@
+# Dependencies and build
+node_modules/
+dist/
+
+# Reconstruction workspaces (tens of GB)
+runtime/
+output/
+tmp/
+
+# Bundled photogrammetry binaries are too large for GitHub (>100 MB)
+engines/ffmpeg/
+engines/colmap/
+engines/openmvs/
+engines/*.zip
+engines/*.7z
+engines/*.rar
+engines/*.tgz
+engines/*.tar
+engines/*.tar.gz
+
+# Footage and engine logs
+*.mp4
+*.mov
+*.m4v
+*.mkv
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.local
+.env
+.env.*

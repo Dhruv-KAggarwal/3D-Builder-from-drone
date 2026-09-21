@@ -1,0 +1,25 @@
+{
+  "name": "aerial-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "api": "node server.mjs",
+    "start": "node server.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "selftest": "node tools/selftest.mjs",
+    "render": "node --max-old-space-size=4096 tools/render.mjs",
+    "reconstruct": "node reconstruct-cli.mjs",
+    "export-existing": "node reconstruct-cli.mjs --reuse=runtime/0c7f4613-8279-4211-a678-f131d0875cd7 --altitude=82",
+    "export-full": "node --max-old-space-size=4096 reconstruct-cli.mjs --reuse=runtime/0c7f4613-8279-4211-a678-f131d0875cd7 --full --altitude=82"
+  },
+  "devDependencies": {
+    "vite": "^7.1.5"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "three": "^0.186.0"
+  }
+}
